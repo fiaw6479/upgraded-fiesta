@@ -193,8 +193,8 @@ async function handleCheckoutCompleted(
     // Update subscription using the enhanced webhook handler
     const { data: result, error } = await supabase.rpc('handle_subscription_webhook', {
       p_user_id: userId,
-      p_plan_type: planType,
-      p_status: 'active',
+      p_plan_type: planType as string,
+      p_status: 'active' as string,
       p_stripe_subscription_id: session.subscription as string || null,
       p_stripe_customer_id: session.customer as string,
       p_period_start: periodStart.toISOString(),
@@ -275,8 +275,8 @@ async function handlePaymentSucceeded(
     // Update subscription
     const { data: result, error } = await supabase.rpc('handle_subscription_webhook', {
       p_user_id: userId,
-      p_plan_type: planType,
-      p_status: 'active',
+      p_plan_type: planType as string,
+      p_status: 'active' as string,
       p_stripe_subscription_id: null, // One-time payments don't have subscription IDs
       p_stripe_customer_id: paymentIntent.customer as string,
       p_period_start: periodStart.toISOString(),
@@ -353,8 +353,8 @@ async function handleInvoicePaymentSucceeded(
     // Update subscription with accurate Stripe periods
     const { data: result, error } = await supabase.rpc('handle_subscription_webhook', {
       p_user_id: userId,
-      p_plan_type: planType,
-      p_status: 'active',
+      p_plan_type: planType as string,
+      p_status: 'active' as string,
       p_stripe_subscription_id: subscription.id,
       p_stripe_customer_id: subscription.customer as string,
       p_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
@@ -419,8 +419,8 @@ async function handleInvoicePaymentFailed(
     // Update subscription status to past_due
     const { error } = await supabase.rpc('handle_subscription_webhook', {
       p_user_id: userId,
-      p_plan_type: planType,
-      p_status: 'past_due',
+      p_plan_type: planType as string,
+      p_status: 'past_due' as string,
       p_stripe_subscription_id: subscription.id,
       p_stripe_customer_id: subscription.customer as string,
       p_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
@@ -500,7 +500,7 @@ async function handleSubscriptionUpdated(
     // Update subscription with accurate Stripe periods
     const { data: result, error } = await supabase.rpc('handle_subscription_webhook', {
       p_user_id: userId,
-      p_plan_type: planType,
+      p_plan_type: planType as string,
       p_status: status,
       p_stripe_subscription_id: subscription.id,
       p_stripe_customer_id: subscription.customer as string,
@@ -557,8 +557,8 @@ async function handleSubscriptionDeleted(
     // Update subscription status to cancelled
     const { data: result, error } = await supabase.rpc('handle_subscription_webhook', {
       p_user_id: userId,
-      p_plan_type: planType,
-      p_status: 'cancelled',
+      p_plan_type: planType as string,
+      p_status: 'cancelled' as string,
       p_stripe_subscription_id: subscription.id,
       p_stripe_customer_id: subscription.customer as string,
       p_period_start: new Date(subscription.current_period_start * 1000).toISOString(),

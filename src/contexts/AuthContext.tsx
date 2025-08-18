@@ -209,15 +209,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // If it's a duplicate error, try to fetch existing
         if (restaurantError.code === '23505') {
           console.log('🔄 Duplicate detected, fetching existing restaurant...');
-          const { data: existingRestaurant } = await supabase
+          const { data: existingRestaurant, error: fetchError } = await supabase
             .from('restaurants')
             .select('*')
             .eq('owner_id', userId)
             .limit(1);
           
-          if (existingRestaurant && existingRestaurant.length > 0) {
+          if (!fetchError && existingRestaurant && existingRestaurant.length > 0) {
+            console.log('✅ Found existing restaurant:', existingRestaurant[0].name);
             setRestaurant(existingRestaurant[0]);
             return;
+          } else {
+            console.error('❌ Failed to fetch existing restaurant after duplicate error:', fetchError);
           }
         }
         return;

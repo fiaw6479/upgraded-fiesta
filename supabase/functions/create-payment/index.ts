@@ -93,6 +93,21 @@ Deno.serve(async (req: Request) => {
       console.log('👤 Created new Stripe customer:', stripeCustomerId);
     }
 
+    // Attach payment method to customer before creating payment/subscription
+    try {
+      await stripe.paymentMethods.attach(paymentMethodId, {
+        customer: stripeCustomerId,
+      });
+      console.log('🔗 Payment method attached to customer');
+    } catch (attachError) {
+      // If already attached, continue (this is not an error)
+      if (attachError.code !== 'resource_already_exists') {
+        console.error('❌ Failed to attach payment method:', attachError);
+        throw new Error(`Failed to attach payment method: ${attachError.message}`);
+      }
+      console.log('🔗 Payment method already attached to customer');
+    }
+
     if (autoRenew) {
       console.log('🔄 Creating recurring subscription...');
       

@@ -43,8 +43,8 @@ export class SubscriptionService {
 
       const { data: rpcResult, error: rpcError } = await supabase.rpc('handle_subscription_webhook', {
         p_user_id: userId,
-        p_plan_type: planType,
-        p_status: 'active',
+        p_plan_type: planType as string,
+        p_status: 'active' as string,
         p_stripe_subscription_id: stripeSubscriptionId || null,
         p_stripe_customer_id: stripeCustomerId || null,
         p_period_start: new Date().toISOString(),
@@ -86,8 +86,8 @@ export class SubscriptionService {
 
       const { data: rpcResult, error: rpcError } = await supabase.rpc('handle_subscription_webhook', {
         p_user_id: currentSub.user_id,
-        p_plan_type: planType,
-        p_status: 'active',
+        p_plan_type: planType as string,
+        p_status: 'active' as string,
         p_stripe_subscription_id: stripeSubscriptionId || null,
         p_stripe_customer_id: stripeCustomerId || null,
         p_period_start: new Date().toISOString(),
