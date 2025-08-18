@@ -58,11 +58,35 @@ export default function DashboardLayout() {
       // Clean up URL immediately to prevent re-triggering
       window.history.replaceState({}, '', window.location.pathname);
       
-      // Trigger subscription refresh with longer delay to ensure webhook processing
+      // Trigger immediate subscription refresh and set up polling
+      checkSubscription(true);
+      
+      // Set up polling to check for subscription updates
+      let pollCount = 0;
+      const maxPolls = 20; // Poll for up to 2 minutes
+      const pollInterval = setInterval(() => {
+        pollCount++;
+        console.log(`🔄 Polling for subscription update (${pollCount}/${maxPolls})`);
+        
+        checkSubscription(true);
+        
+        if (pollCount >= maxPolls) {
+          clearInterval(pollInterval);
+          console.log('⏰ Stopped polling for subscription updates');
+        }
+      }, 6000); // Poll every 6 seconds
+      
+      // Also trigger the subscription update event
       setTimeout(() => {
-        checkSubscription(true); // Force refresh
         window.dispatchEvent(new CustomEvent('subscription-updated'));
-      }, 3000); // Increased delay for webhook processing
+      }, 1000);
+      
+      // Clean up polling when component unmounts
+      return () => {
+        if (pollInterval) {
+          clearInterval(pollInterval);
+        }
+      };
     }
   }, []);
 
@@ -71,7 +95,7 @@ export default function DashboardLayout() {
     
     // Check if we should use cached subscription data (15 minute cache)
     const now = Date.now();
-    const SUBSCRIPTION_CACHE_DURATION = 5 * 60 * 1000; // Reduced to 5 minutes for better payment updates
+    const SUBSCRIPTION_CACHE_DURATION = 30 * 1000; // Reduced to 30 seconds for immediate payment updates
     
     if (!forceRefresh && subscriptionData && (now - lastSubscriptionCheck) < SUBSCRIPTION_CACHE_DURATION) {
       console.log('📊 Using cached subscription data');
@@ -80,7 +104,7 @@ export default function DashboardLayout() {
     
     try {
       setSubscriptionLoading(true);
-      console.log('🔄 Fetching fresh subscription data...');
+      console.log('🔄 Fetching fresh subscription data...', forceRefresh ? '(forced)' : '(cache expired)');
       const data = await SubscriptionService.checkSubscriptionAccess(user.id);
       console.log('📊 Subscription data loaded:', {
         hasAccess: data.hasAccess,

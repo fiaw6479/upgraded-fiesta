@@ -123,11 +123,19 @@ const CheckoutForm: React.FC<{
       // Payment successful
       onSuccess();
       
-      // Trigger subscription update event with delay to ensure webhook processing
+      // Trigger immediate subscription update events
+      window.dispatchEvent(new CustomEvent('subscription-updated'));
+      
+      // Also trigger with delays to handle webhook processing
       setTimeout(() => {
         console.log('🔄 Triggering subscription update event');
         window.dispatchEvent(new CustomEvent('subscription-updated'));
-      }, 2000); // Increased delay for webhook processing
+      }, 3000);
+      
+      setTimeout(() => {
+        console.log('🔄 Final subscription update event');
+        window.dispatchEvent(new CustomEvent('subscription-updated'));
+      }, 8000);
 
     } catch (err: any) {
       console.error('Payment error:', err);

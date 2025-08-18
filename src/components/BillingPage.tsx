@@ -274,7 +274,15 @@ const BillingPage: React.FC = () => {
   useEffect(() => {
     const handleSubscriptionUpdate = () => {
       console.log('🔄 Billing page: Subscription update event received');
-      loadBillingData();
+      // Force refresh billing data immediately
+      setTimeout(() => {
+        loadBillingData();
+      }, 500);
+      
+      // Also refresh after a longer delay for webhook processing
+      setTimeout(() => {
+        loadBillingData();
+      }, 5000);
     };
 
     window.addEventListener('subscription-updated', handleSubscriptionUpdate);

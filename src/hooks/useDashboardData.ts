@@ -579,10 +579,8 @@ export const useDashboardData = (timeRange: string = '7d') => {
   useEffect(() => {
     const handleSubscriptionUpdate = () => {
       console.log('🔄 Subscription update event received in dashboard');
-      // Add a small delay to ensure backend has processed the update
-      setTimeout(() => {
-        refreshData();
-      }, 1000);
+      // Immediately refresh data when subscription updates
+      refreshData();
     };
 
     window.addEventListener('subscription-updated', handleSubscriptionUpdate);

@@ -107,21 +107,25 @@ const currentPlan = plans.find(p => p.planId === selectedPlan);
     
     console.log('🎉 Payment successful, refreshing subscription data...');
     
-    // Wait for webhook processing before refreshing
+    // Immediate refresh
+    await loadCurrentSubscription();
+    window.dispatchEvent(new CustomEvent('subscription-updated'));
+    
+    // Navigate immediately with success indicator
+    navigate('/dashboard', { 
+      state: { paymentSuccess: true }
+    });
+    
+    // Continue polling for subscription updates in background
     setTimeout(() => {
       console.log('🔄 Triggering subscription refresh after payment success');
       window.dispatchEvent(new CustomEvent('subscription-updated'));
-      
-      // Navigate back to dashboard with success indicator
-      navigate('/dashboard', { 
-        state: { paymentSuccess: true }
-      });
-    }, 2000);
-    
-    // Additional refresh after navigation
-    setTimeout(() => {
-      loadCurrentSubscription();
     }, 3000);
+    
+    setTimeout(() => {
+      console.log('🔄 Final subscription refresh');
+      window.dispatchEvent(new CustomEvent('subscription-updated'));
+    }, 8000);
   };
 
   const handlePaymentCancel = () => {
