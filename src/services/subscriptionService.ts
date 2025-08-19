@@ -32,36 +32,62 @@ export class SubscriptionService {
     stripeCustomerId?: string
   ): Promise<Subscription> {
     try {
-      console.log('🔄 Creating/updating subscription:', { userId, planType, stripeSubscriptionId, stripeCustomerId });
+      console.log('🔄 Creating subscription:', { userId, planType, stripeSubscriptionId, stripeCustomerId });
       
-      const existingSubscription = await this.getUserSubscription(userId);
+      // Calculate proper periods
+      const periodStart = new Date();
+      let periodEnd = new Date(periodStart);
       
-      if (existingSubscription && existingSubscription.status === 'active') {
-        console.log('📝 Updating existing active subscription:', existingSubscription.id);
-        return await this.updateSubscription(existingSubscription.id, planType, stripeSubscriptionId, stripeCustomerId);
+      switch (planType) {
+        case 'trial':
+          periodEnd.setDate(periodEnd.getDate() + 30);
+          break;
+        case 'monthly':
+          periodEnd.setMonth(periodEnd.getMonth() + 1);
+          break;
+        case 'semiannual':
+          periodEnd.setMonth(periodEnd.getMonth() + 6);
+          break;
+        case 'annual':
+          periodEnd.setFullYear(periodEnd.getFullYear() + 1);
+          break;
       }
 
       const { data: rpcResult, error: rpcError } = await supabase.rpc('handle_subscription_webhook', {
         p_user_id: userId,
-        p_plan_type: planType as string,
-        p_status: 'active' as string,
+        p_plan_type: planType,
+        p_status: 'active',
         p_stripe_subscription_id: stripeSubscriptionId || null,
         p_stripe_customer_id: stripeCustomerId || null,
-        p_period_start: new Date().toISOString(),
-        p_period_end: null
+        p_period_start: periodStart.toISOString(),
+        p_period_end: periodEnd.toISOString()
       });
 
-      if (rpcError) throw new Error(`Failed to create subscription: ${rpcError.message}`);
+      if (rpcError) {
+        console.error('❌ RPC Error:', rpcError);
+        throw new Error(`Failed to create subscription: ${rpcError.message}`);
+      }
 
+      console.log('✅ RPC Result:', rpcResult);
+
+      // Fetch the created/updated subscription
       const { data: subscriptionData, error: fetchError } = await supabase
         .from('subscriptions')
-        .select()
+        .select('*')
         .eq('user_id', userId)
         .order('updated_at', { ascending: false })
-        .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (fetchError) throw new Error(`Failed to fetch subscription: ${fetchError.message}`);
+      if (fetchError) {
+        console.error('❌ Fetch Error:', fetchError);
+        throw new Error(`Failed to fetch subscription: ${fetchError.message}`);
+      }
+
+      if (!subscriptionData) {
+        throw new Error('Subscription was not created properly');
+      }
+
+      console.log('✅ Subscription created/updated:', subscriptionData);
       return subscriptionData;
     } catch (error: any) {
       console.error('Error creating subscription:', error);
@@ -167,7 +193,9 @@ export class SubscriptionService {
     billingPeriodAccurate?: boolean;
   }> {
     try {
+      console.log('🔍 Checking subscription access for user:', userId);
       const subscription = await this.getUserSubscription(userId);
+      console.log('📊 Raw subscription data:', subscription);
       return this.fallbackAccessCheck(subscription);
     } catch (error: any) {
       console.error('Error checking subscription access:', error);
@@ -185,7 +213,10 @@ export class SubscriptionService {
   }
 
   private static fallbackAccessCheck(subscription: Subscription | null) {
+    console.log('🔍 Fallback access check for subscription:', subscription);
+    
     if (!subscription) {
+      console.log('❌ No subscription found, returning trial access');
       return {
         hasAccess: true,
         subscription: null,
@@ -206,6 +237,16 @@ export class SubscriptionService {
     const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
     const billingPeriodText = subscription.billing_period_text || this.generateFallbackBillingPeriodText(subscription);
     const billingPeriodAccurate = subscription.billing_period_accurate !== false;
+
+    console.log('📊 Access check result:', {
+      planType: subscription.plan_type,
+      status: subscription.status,
+      hasAccess,
+      isExpired,
+      isCancelled,
+      daysRemaining,
+      endDate: endDate.toISOString()
+    });
 
     return {
       hasAccess,

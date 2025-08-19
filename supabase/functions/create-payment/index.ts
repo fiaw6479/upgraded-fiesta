@@ -64,12 +64,6 @@ Deno.serve(async (req: Request) => {
       annual: 1999 // $19.99 in cents
     };
 
-    // Validate price configuration
-    const priceId = priceMap[planType];
-    if (!priceId) {
-      throw new Error(`Price ID not configured for plan: ${planType}. Please configure Stripe price IDs in environment variables.`);
-    }
-
     // Get or create Stripe customer
     let stripeCustomerId: string;
 
@@ -101,7 +95,7 @@ Deno.serve(async (req: Request) => {
       console.log('🔗 Payment method attached to customer');
     } catch (attachError) {
       // If already attached, continue (this is not an error)
-      if (attachError.code !== 'resource_already_exists') {
+      if (!attachError.message?.includes('already been attached')) {
         console.error('❌ Failed to attach payment method:', attachError);
         throw new Error(`Failed to attach payment method: ${attachError.message}`);
       }
@@ -111,6 +105,12 @@ Deno.serve(async (req: Request) => {
     if (autoRenew) {
       console.log('🔄 Creating recurring subscription...');
       
+      // Validate price configuration for subscriptions
+      const priceId = priceMap[planType];
+      if (!priceId) {
+        throw new Error(`Price ID not configured for plan: ${planType}. Please configure Stripe price IDs in environment variables.`);
+      }
+
       // Create subscription with proper metadata
       const subscription = await stripe.subscriptions.create({
         customer: stripeCustomerId,
@@ -135,6 +135,27 @@ Deno.serve(async (req: Request) => {
         currentPeriodStart: subscription.current_period_start,
         currentPeriodEnd: subscription.current_period_end
       });
+
+      // Immediately update our database with subscription info
+      try {
+        const { error: dbError } = await supabaseClient.rpc('handle_subscription_webhook', {
+          p_user_id: user.id,
+          p_plan_type: planType,
+          p_status: 'active',
+          p_stripe_subscription_id: subscription.id,
+          p_stripe_customer_id: stripeCustomerId,
+          p_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
+          p_period_end: new Date(subscription.current_period_end * 1000).toISOString()
+        });
+
+        if (dbError) {
+          console.error('❌ Failed to update database immediately:', dbError);
+        } else {
+          console.log('✅ Database updated immediately with subscription');
+        }
+      } catch (dbError) {
+        console.error('❌ Database update error:', dbError);
+      }
 
       const invoice = subscription.latest_invoice as Stripe.Invoice;
       const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
@@ -174,6 +195,29 @@ Deno.serve(async (req: Request) => {
         status: paymentIntent.status,
         amount: paymentIntent.amount
       });
+
+      // For one-time payments, immediately update our database
+      if (paymentIntent.status === 'succeeded') {
+        try {
+          const { error: dbError } = await supabaseClient.rpc('handle_subscription_webhook', {
+            p_user_id: user.id,
+            p_plan_type: planType,
+            p_status: 'active',
+            p_stripe_subscription_id: null,
+            p_stripe_customer_id: stripeCustomerId,
+            p_period_start: new Date().toISOString(),
+            p_period_end: null // Will be calculated by the function
+          });
+
+          if (dbError) {
+            console.error('❌ Failed to update database for one-time payment:', dbError);
+          } else {
+            console.log('✅ Database updated immediately for one-time payment');
+          }
+        } catch (dbError) {
+          console.error('❌ Database update error for one-time payment:', dbError);
+        }
+      }
 
       return new Response(
         JSON.stringify({ 

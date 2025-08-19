@@ -95,7 +95,7 @@ export default function DashboardLayout() {
     
     // Check if we should use cached subscription data (15 minute cache)
     const now = Date.now();
-    const SUBSCRIPTION_CACHE_DURATION = 30 * 1000; // Reduced to 30 seconds for immediate payment updates
+    const SUBSCRIPTION_CACHE_DURATION = 5 * 1000; // Reduced to 5 seconds for immediate payment updates
     
     if (!forceRefresh && subscriptionData && (now - lastSubscriptionCheck) < SUBSCRIPTION_CACHE_DURATION) {
       console.log('📊 Using cached subscription data');
@@ -146,6 +146,19 @@ export default function DashboardLayout() {
     }
     return location.pathname === href;
   };
+
+  // Add debug info for subscription status
+  React.useEffect(() => {
+    if (subscriptionData) {
+      console.log('🔍 Current subscription status in layout:', {
+        planType: subscriptionData.subscription?.plan_type,
+        status: subscriptionData.subscription?.status,
+        hasAccess: subscriptionData.hasAccess,
+        isExpired: subscriptionData.isExpired,
+        daysRemaining: subscriptionData.daysRemaining
+      });
+    }
+  }, [subscriptionData]);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -229,7 +242,7 @@ export default function DashboardLayout() {
             {/* Subscription Status */}
             {subscriptionData && (
               <div className="mb-4">
-                {subscriptionData.subscription?.plan_type === 'trial' && subscriptionData.daysRemaining <= 7 && (
+                {subscriptionData.subscription?.plan_type === 'trial' && subscriptionData.daysRemaining !== undefined && subscriptionData.daysRemaining <= 7 && (
                   <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
                     <div className="flex items-center gap-2 mb-2">
                       <Clock className="h-4 w-4 text-yellow-600" />
@@ -257,6 +270,18 @@ export default function DashboardLayout() {
                       {subscriptionData.subscription?.plan_type || 'Trial'}
                     </span>
                   </div>
+                  {subscriptionData.subscription?.status && (
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs text-gray-600">Status</span>
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                        subscriptionData.subscription.status === 'active' ? 'bg-green-100 text-green-800' :
+                        subscriptionData.subscription.status === 'past_due' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {subscriptionData.subscription.status}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -324,7 +349,7 @@ export default function DashboardLayout() {
             <div className="flex flex-1"></div>
             <div className="flex items-center gap-x-4 lg:gap-x-6">
               {/* Subscription indicator for mobile */}
-              {subscriptionData?.subscription?.plan_type === 'trial' && subscriptionData?.daysRemaining <= 7 && (
+              {subscriptionData?.subscription?.plan_type === 'trial' && subscriptionData?.daysRemaining !== undefined && subscriptionData?.daysRemaining <= 7 && (
                 <button
                   onClick={() => navigate('/upgrade')}
                   className="lg:hidden bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1"

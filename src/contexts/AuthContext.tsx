@@ -150,16 +150,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const createDefaultRestaurant = async (userId: string) => {
     try {
-      // First check if restaurant already exists
+      console.log('🏗️ Creating default restaurant for user:', userId);
+      
+      // Check if restaurant already exists with better error handling
       const { data: existingRestaurant } = await supabase
         .from('restaurants')
         .select('*')
         .eq('owner_id', userId)
-        .limit(1);
+        .maybeSingle();
 
       if (existingRestaurant && existingRestaurant.length > 0) {
-        console.log('🏪 Restaurant already exists, using existing...');
+        console.log('🏪 Restaurant already exists:', existingRestaurant.name);
         setRestaurant(existingRestaurant[0]);
+        return;
+      }
+      
+      if (existingRestaurant) {
+        console.log('🏪 Restaurant already exists:', existingRestaurant.name);
+        setRestaurant(existingRestaurant);
         return;
       }
 
@@ -167,10 +175,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const user = userData.user;
       
       const restaurantName = user?.user_metadata?.restaurant_name || 'My Restaurant';
-      // Create a simple unique slug
+      // Create a more unique slug
       const baseSlug = restaurantName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      const timestamp = Date.now();
-      const slug = `${baseSlug}-${timestamp}`;
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
+      const slug = `${baseSlug}-${randomSuffix}`;
 
       console.log('🏗️ Creating restaurant:', restaurantName);
 
@@ -206,23 +214,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (restaurantError) {
         console.error('❌ Error creating restaurant:', restaurantError);
-        // If it's a duplicate error, try to fetch existing
+        
+        // Handle duplicate error more robustly
         if (restaurantError.code === '23505') {
           console.log('🔄 Duplicate detected, fetching existing restaurant...');
-          const { data: existingRestaurant, error: fetchError } = await supabase
+          
+          // Wait a moment and try again
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          const { data: duplicateRestaurant, error: fetchError } = await supabase
             .from('restaurants')
             .select('*')
             .eq('owner_id', userId)
-            .limit(1);
+            .maybeSingle();
           
-          if (!fetchError && existingRestaurant && existingRestaurant.length > 0) {
-            console.log('✅ Found existing restaurant:', existingRestaurant[0].name);
-            setRestaurant(existingRestaurant[0]);
+          if (!fetchError && duplicateRestaurant) {
+            console.log('✅ Found existing restaurant after duplicate:', duplicateRestaurant.name);
+            setRestaurant(duplicateRestaurant);
             return;
-          } else {
-            console.error('❌ Failed to fetch existing restaurant after duplicate error:', fetchError);
           }
+          
+          console.error('❌ Failed to fetch existing restaurant after duplicate error:', fetchError);
         }
+        
+        // Don't throw error, just log it and continue
+        console.warn('⚠️ Restaurant creation failed, user may need to refresh:', restaurantError.message);
         return;
       }
 
@@ -237,6 +253,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
     } catch (error) {
       console.error('💥 Error creating default restaurant:', error);
+      // Don't throw error to prevent auth flow from breaking
     }
   };
 
