@@ -24,7 +24,7 @@
 -- CRITICAL FIX: Drop the trigger FIRST before dropping the function
 -- This resolves the dependency error (2BP01)
 DROP TRIGGER IF EXISTS trigger_update_billing_period_text ON subscriptions;
-
+ 
 -- Now we can safely drop the function
 DROP FUNCTION IF EXISTS update_billing_period_text();
 
