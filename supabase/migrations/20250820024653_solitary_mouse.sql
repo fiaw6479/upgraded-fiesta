@@ -15,11 +15,20 @@
   3. Triggers
     - Ensure trigger fires on both INSERT and UPDATE
     - Recalculate billing periods when subscription data changes
+
+  4. Key Fix
+    - Drop trigger BEFORE dropping function to resolve dependency error
+    - Proper order of operations to prevent 2BP01 error
 */
 
--- Drop existing function and recreate with proper logic
+-- CRITICAL FIX: Drop the trigger FIRST before dropping the function
+-- This resolves the dependency error (2BP01)
+DROP TRIGGER IF EXISTS trigger_update_billing_period_text ON subscriptions;
+
+-- Now we can safely drop the function
 DROP FUNCTION IF EXISTS update_billing_period_text();
 
+-- Recreate the function with improved logic
 CREATE OR REPLACE FUNCTION update_billing_period_text()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -57,7 +66,7 @@ BEGIN
       duration_text := actual_duration_days || ' days';
   END CASE;
   
-  -- Check if billing period is accurate (within 10% tolerance)
+  -- Check if billing period is accurate (within reasonable tolerance)
   IF NEW.plan_type = 'monthly' THEN
     -- For monthly, check if it's between 28-31 days
     is_accurate := actual_duration_days BETWEEN 28 AND 31;
@@ -86,8 +95,6 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Recreate the trigger
-DROP TRIGGER IF EXISTS trigger_update_billing_period_text ON subscriptions;
-
 CREATE TRIGGER trigger_update_billing_period_text
   BEFORE INSERT OR UPDATE ON subscriptions
   FOR EACH ROW
@@ -114,4 +121,4 @@ BEGIN
   
   RETURN updated_count;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql; 
