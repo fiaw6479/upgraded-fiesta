@@ -426,9 +426,9 @@ const BillingPage: React.FC = () => {
   const getBillingPeriodText = () => {
     if (!subscription?.subscription) return 'N/A';
     
-    // Use the billing period text from subscription data if available and accurate
-    if (subscription.billingPeriodText && subscription.billingPeriodAccurate !== false) {
-      return subscription.billingPeriodText;
+    // Always use the billing period text from database if available
+    if (subscription.subscription.billing_period_text) {
+      return subscription.subscription.billing_period_text;
     }
     
     // Fallback calculation
@@ -441,14 +441,7 @@ const BillingPage: React.FC = () => {
     const end = new Date(endDate).toLocaleDateString('en-US');
     const planDuration = getPlanDurationText(subscription.subscription.plan_type);
     
-    const fallbackText = `${start} – ${end} (${planDuration})`;
-    
-    // Show warning if billing period is inaccurate
-    if (subscription.billingPeriodAccurate === false) {
-      return `${fallbackText} ⚠️`;
-    }
-    
-    return fallbackText;
+    return `${start} – ${end} (${planDuration})`;
   };
 
   const getPlanDurationText = (planType: string) => {

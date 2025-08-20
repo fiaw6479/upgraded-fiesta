@@ -235,8 +235,15 @@ export class SubscriptionService {
     const isCancelled = subscription.status === 'cancelled';
     const hasAccess = (subscription.status === 'active' || (isCancelled && !isExpired)) && endDate > now;
     const daysRemaining = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    const billingPeriodText = subscription.billing_period_text || this.generateFallbackBillingPeriodText(subscription);
-    const billingPeriodAccurate = subscription.billing_period_accurate !== false;
+    
+    // Use database billing period text if available, otherwise generate fallback
+    let billingPeriodText = subscription.billing_period_text;
+    let billingPeriodAccurate = subscription.billing_period_accurate;
+    
+    if (!billingPeriodText) {
+      billingPeriodText = this.generateFallbackBillingPeriodText(subscription);
+      billingPeriodAccurate = false; // Mark as inaccurate since it's a fallback
+    }
 
     console.log('📊 Access check result:', {
       planType: subscription.plan_type,
@@ -245,7 +252,9 @@ export class SubscriptionService {
       isExpired,
       isCancelled,
       daysRemaining,
-      endDate: endDate.toISOString()
+      endDate: endDate.toISOString(),
+      billingPeriodText,
+      billingPeriodAccurate
     });
 
     return {

@@ -205,8 +205,8 @@ Deno.serve(async (req: Request) => {
             p_status: 'active',
             p_stripe_subscription_id: null,
             p_stripe_customer_id: stripeCustomerId,
-            p_period_start: new Date().toISOString(),
-            p_period_end: null // Will be calculated by the function
+            p_period_start: periodStart.toISOString(),
+            p_period_end: periodEnd.toISOString()
           });
 
           if (dbError) {
